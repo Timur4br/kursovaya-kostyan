@@ -1,0 +1,50 @@
+name: Checks
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go tests and vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.4"
+          cache: true
+      - name: Check formatting
+        run: test -z "$(gofmt -l services migrations/embed.go)"
+      - run: go test ./...
+      - run: go vet ./...
+      - name: Build gateway
+        run: go build -o /tmp/gateway ./services/api_gateway/cmd/gateway
+
+  compose:
+    name: Compose and PostgreSQL integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure isolated CI database
+        run: |
+          {
+            echo 'POSTGRES_DB=coursework_ci'
+            echo 'POSTGRES_USER=coursework_ci'
+            printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)"
+            echo 'API_PORT=18080'
+          } > .env
+      - name: Verify full stack
+        run: sh scripts/verify.sh
+      - name: Verify HTTP readiness
+        run: curl --fail --silent --show-error http://127.0.0.1:18080/readyz
+      - name: Container logs
+        if: always()
+        run: docker compose logs --no-color --tail=100
+      - name: Stop CI containers
+        if: always()
+        run: docker compose down

@@ -1,0 +1,86 @@
+name: kursovaya-kostyan
+
+x-db-environment: &db-environment
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_NAME: ${POSTGRES_DB:?Fill POSTGRES_DB in .env}
+  DB_USER: ${POSTGRES_USER:?Fill POSTGRES_USER in .env}
+  DB_PASSWORD: ${POSTGRES_PASSWORD:?Fill POSTGRES_PASSWORD in .env}
+  DB_SSLMODE: disable
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.7-pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Fill POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Fill POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Fill POSTGRES_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 3s
+      timeout: 3s
+      start_period: 10s
+      retries: 30
+    restart: unless-stopped
+
+  migrate:
+    image: kursovaya-kostyan-migrate:local
+    build:
+      context: .
+      dockerfile: services/api_gateway/Dockerfile
+      target: runtime
+    command: ["migrate"]
+    environment: *db-environment
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api_gateway:
+    image: kursovaya-kostyan-api:local
+    build:
+      context: .
+      dockerfile: services/api_gateway/Dockerfile
+      target: runtime
+    command: ["serve"]
+    environment:
+      <<: *db-environment
+      HTTP_ADDR: ":8080"
+    ports:
+      - "127.0.0.1:${API_PORT:?Fill API_PORT in .env}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/app/gateway", "healthcheck"]
+      interval: 5s
+      timeout: 4s
+      start_period: 5s
+      retries: 12
+    restart: unless-stopped
+
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: services/api_gateway/Dockerfile
+      target: test
+    environment:
+      <<: *db-environment
+      RUN_DB_TESTS: "1"
+      PERSISTENCE_PROBE: ${PERSISTENCE_PROBE:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
