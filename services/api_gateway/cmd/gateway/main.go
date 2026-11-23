@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Timur4br/kursovaya-kostyan/services/api_gateway/internal/app"
 	"github.com/Timur4br/kursovaya-kostyan/services/api_gateway/internal/config"
 	"github.com/Timur4br/kursovaya-kostyan/services/api_gateway/internal/database"
 	"github.com/Timur4br/kursovaya-kostyan/services/api_gateway/internal/httpapi"
@@ -30,8 +32,11 @@ func run(logger *slog.Logger) error {
 	if len(os.Args) > 1 {
 		command = os.Args[1]
 	}
+	if command == "openapi" {
+		return json.NewEncoder(os.Stdout).Encode(httpapi.OpenAPI())
+	}
 	if command != "serve" && command != "migrate" && command != "healthcheck" {
-		return fmt.Errorf("usage: gateway [serve|migrate|healthcheck]")
+		return fmt.Errorf("usage: gateway [serve|migrate|healthcheck|openapi]")
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -72,7 +77,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("database not ready; run migrations first: %w", err)
 	}
-	server := &http.Server{Addr: cfg.HTTPAddr, Handler: httpapi.Handler(func(c context.Context) error { return database.Ready(c, db) }, logger), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Addr: cfg.HTTPAddr, Handler: app.Handler(db, func(c context.Context) error { return database.Ready(c, db) }, logger), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	fail := make(chan error, 1)
 	go func() { logger.Info("HTTP server starting", "address", cfg.HTTPAddr); fail <- server.ListenAndServe() }()
 	select {

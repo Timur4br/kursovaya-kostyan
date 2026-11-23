@@ -12,7 +12,7 @@ import (
 )
 
 func TestLivenessDoesNotDependOnDatabase(t *testing.T) {
-	h := Handler(func(context.Context) error { t.Fatal("liveness queried database"); return nil }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := Handler(func(context.Context) error { t.Fatal("liveness queried database"); return nil }, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 	if w.Code != 200 {
@@ -30,7 +30,7 @@ func TestReadinessAndErrors(t *testing.T) {
 				return errors.New("internal database credentials should never appear in the response")
 			}
 			return nil
-		}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		}, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/readyz", nil))
 		want := 503
@@ -50,7 +50,7 @@ func TestReadinessAndErrors(t *testing.T) {
 }
 
 func TestNoCrudRoutesYet(t *testing.T) {
-	h := Handler(func(context.Context) error { return nil }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := Handler(func(context.Context) error { return nil }, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	for _, path := range []string{"/", "/api/objects", "/unknown"} {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
