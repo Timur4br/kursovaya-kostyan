@@ -1,19 +1,34 @@
-FROM golang:1.27.4-bookworm AS build
-WORKDIR /src
-COPY go.mod go.sum ./
+# Build stage
+FROM golang:1.27-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates
+
+RUN go install github.com/swaggo/swag/cmd/swag@latest    
+
+WORKDIR /build
+
+COPY src/go.mod src/go.sum ./
+
 RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/gateway ./services/api_gateway/cmd/gateway
 
-FROM build AS test
-CMD ["go", "test", "-count=1", "-v", "./..."]
+COPY src/ ./
 
-FROM debian:bookworm-slim AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY --from=build /out/gateway /app/gateway
-USER 10001:10001
-EXPOSE 8080
-ENTRYPOINT ["/app/gateway"]
-CMD ["serve"]
+RUN swag init -g main.go --output ./docs --parseDependency
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w" \ 
+    -o /build/bin/api_gateway .
+
+# Run stage
+FROM alpine:latest
+
+RUN apk add --no-cache busybox-extras
+
+WORKDIR /api_gateway
+
+COPY --from=builder /build/bin/api_gateway /usr/local/bin/api_gateway
+COPY --from=builder /build/docs ./docs
+
+COPY configs/ /etc/api_gateway/configs/
+
+CMD ["api_gateway"]
