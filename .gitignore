@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.sample
+.runtime/
+.local/
+bin/
+coverage.out
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
