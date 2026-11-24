@@ -25,7 +25,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	defer db.Close()
+
 	endpoint.NewRouter(db).Router.Run(os.Getenv("URL_SERVER"))
 }

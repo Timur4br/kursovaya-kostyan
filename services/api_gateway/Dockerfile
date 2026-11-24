@@ -29,6 +29,4 @@ WORKDIR /api_gateway
 COPY --from=builder /build/bin/api_gateway /usr/local/bin/api_gateway
 COPY --from=builder /build/docs ./docs
 
-COPY configs/ /etc/api_gateway/configs/
-
 CMD ["api_gateway"]

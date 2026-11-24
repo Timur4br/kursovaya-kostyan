@@ -15,21 +15,6 @@ CREATE TABLE camera (
 );
 
 -- ============================================
--- users
--- ============================================
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    login VARCHAR NOT NULL UNIQUE,
-    password VARCHAR NOT NULL,
-    username VARCHAR NOT NULL,
-    last_login TIMESTAMP WITH TIME ZONE,
-    role_id INTEGER NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    FOREIGN KEY (role_id) REFERENCES role(id)
-);
-
--- ============================================
 -- role
 -- ============================================
 CREATE TABLE role (
@@ -43,6 +28,21 @@ CREATE TABLE role (
 CREATE TABLE authority (
     id INTEGER GENERATED ALWAYS AS IDENTITY NOT NULL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL
+);
+
+-- ============================================
+-- users
+-- ============================================
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    login VARCHAR NOT NULL UNIQUE,
+    password VARCHAR NOT NULL,
+    username VARCHAR NOT NULL,
+    last_login TIMESTAMP WITH TIME ZONE,
+    role_id INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    FOREIGN KEY (role_id) REFERENCES role(id)
 );
 
 -- ============================================
@@ -77,7 +77,7 @@ CREATE TABLE objects (
 -- events
 -- ============================================
 CREATE TABLE events (
-    "uuid" UUID PRIMARY KEY gen_random_uuid(),
+    "uuid" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     camera_id INTEGER NOT NULL,
     object_id INTEGER NOT NULL,
     type VARCHAR NOT NULL,
