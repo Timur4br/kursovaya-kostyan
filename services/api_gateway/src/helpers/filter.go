@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"strconv"
 	"time"
@@ -11,16 +12,44 @@ import (
 
 func ExtractFilterFromQueryParams(params url.Values) (*entities.Filter, error) {
 	config := &entities.Filter{}
-	hasValue := false
 
 	if err := setIntParam(params, "camera_id", &config.CameraID); err != nil {
 		return nil, err
 	}
-	if config.CameraID != nil {
-		hasValue = true
+	if err := setIntParam(params, "object_id", &config.ObjectID); err != nil {
+		return nil, err
+	}
+	if err := setStringParam(params, "type", &config.Type); err != nil {
+		return nil, err
+	}
+	if err := setStringParam(params, "ip", &config.IP); err != nil {
+		return nil, err
+	}
+	if err := setBoolParam(params, "is_enabled", &config.IsEnabled); err != nil {
+		return nil, err
+	}
+	if err := setFloatParam(params, "confidence_min", &config.ConfidenceMin); err != nil {
+		return nil, err
+	}
+	if err := setFloatParam(params, "confidence_max", &config.ConfidenceMax); err != nil {
+		return nil, err
+	}
+	if err := setDateParam(params, "created_from", &config.CreatedFrom); err != nil {
+		return nil, err
+	}
+	if err := setDateParam(params, "created_to", &config.CreatedTo); err != nil {
+		return nil, err
 	}
 
-	if !hasValue {
+	if config.ConfidenceMin != nil && config.ConfidenceMax != nil && *config.ConfidenceMin > *config.ConfidenceMax {
+		return nil, fmt.Errorf("confidence_min must not exceed confidence_max")
+	}
+	if config.CreatedFrom != nil && config.CreatedTo != nil && config.CreatedFrom.After(*config.CreatedTo) {
+		return nil, fmt.Errorf("created_from must not exceed created_to")
+	}
+	if config.CameraID == nil && config.ObjectID == nil && config.Type == nil && config.IP == nil &&
+		config.IsEnabled == nil && config.ConfidenceMin == nil && config.ConfidenceMax == nil &&
+		config.CreatedFrom == nil && config.CreatedTo == nil {
 		return nil, nil
 	}
 	return config, nil
@@ -80,6 +109,20 @@ func setDateParam(params url.Values, key string, target **time.Time) error {
 		}
 
 		return fmt.Errorf("invalid %s parameter: unsupported date format", key)
+	}
+	return nil
+}
+
+func setFloatParam(params url.Values, key string, target **float64) error {
+	if val := params.Get(key); val != "" {
+		num, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return fmt.Errorf("invalid %s parameter: %w", key, err)
+		}
+		if math.IsNaN(num) || math.IsInf(num, 0) {
+			return fmt.Errorf("invalid %s parameter: value must be finite", key)
+		}
+		*target = &num
 	}
 	return nil
 }

@@ -28,7 +28,7 @@ func (d *CameraDAO) CreateCamera(camera *entities.Camera) (int, error) {
 	query := fmt.Sprintf(`
 	INSERT
 		INTO %s
-		(comment, stream_url, ip, port, is_enabled)
+		(comment, stream_url, ip, http_port, is_enabled)
 	VALUES
 		($1, $2, $3, $4, $5)
 	RETURNING id
@@ -49,7 +49,7 @@ func (d *CameraDAO) CreateCamera(camera *entities.Camera) (int, error) {
 func (d *CameraDAO) GetCameraByID(id int) (*entities.Camera, error) {
 	query := fmt.Sprintf(`
 	SELECT
-		id, comment, stream_url, ip, port, is_enabled, created_at, updated_at
+		id, COALESCE(comment, ''), COALESCE(stream_url, ''), ip, http_port, is_enabled, created_at, updated_at
 	FROM
 		%s AS t
 	WHERE
@@ -68,15 +68,16 @@ func (d *CameraDAO) GetCameraByID(id int) (*entities.Camera, error) {
 	return camera, err
 }
 
-func (d *CameraDAO) GetCameraList(limit, offset int) ([]entities.Camera, error) {
+func (d *CameraDAO) GetCameraList(limit, offset int, filter *entities.Filter) ([]entities.Camera, error) {
 	query := fmt.Sprintf(`
 	SELECT
-		id, comment, stream_url, ip, port, is_enabled, created_at, updated_at
+		id, COALESCE(comment, ''), COALESCE(stream_url, ''), ip, http_port, is_enabled, created_at, updated_at
 	FROM
 		%s AS c
 	`, d.tableName)
 
 	var args []interface{}
+	query = addFilterByCamera(query, &args, filter)
 
 	query += " ORDER BY id"
 	query = addPagination(query, &args, limit, offset)
@@ -86,6 +87,8 @@ func (d *CameraDAO) GetCameraList(limit, offset int) ([]entities.Camera, error) 
 		log.Printf("Error get camera list: %v", err)
 		return nil, err
 	}
+
+	defer rows.Close()
 
 	cameras := make([]entities.Camera, 0)
 
@@ -103,10 +106,10 @@ func (d *CameraDAO) GetCameraList(limit, offset int) ([]entities.Camera, error) 
 		cameras = append(cameras, camera)
 	}
 
-	return cameras, err
+	return cameras, rows.Err()
 }
 
-func (d *CameraDAO) GetCount() (int, error) {
+func (d *CameraDAO) GetCount(filter *entities.Filter) (int, error) {
 	query := fmt.Sprintf(`
 	SELECT
 		COUNT(*)
@@ -114,8 +117,11 @@ func (d *CameraDAO) GetCount() (int, error) {
 		%s
 	`, d.tableName)
 
+	var args []any
+	query = addFilterByCamera(query, &args, filter)
+
 	var count int
-	err := d.db.QueryRow(query).Scan(&count)
+	err := d.db.QueryRow(query, args...).Scan(&count)
 	if err != nil {
 		log.Printf("Error get cameras count: %v", err)
 		return 0, err
@@ -132,7 +138,7 @@ func (d *CameraDAO) UpdateCamera(camera *entities.Camera) error {
 		comment = $2,
 		stream_url = $3,
 		ip = $4,
-		port = $5,
+		http_port = $5,
 		is_enabled = $6,
 		updated_at = NOW()
 	WHERE

@@ -38,8 +38,8 @@ func (s *CameraService) GetCameraByID(id int) (*entities.Camera, error) {
 	return camera, err
 }
 
-func (s *CameraService) GetCameraList(limit, offset int) ([]entities.Camera, error) {
-	cameras, err := s.dao.GetCameraList(limit, offset)
+func (s *CameraService) GetCameraList(limit, offset int, filter *entities.Filter) ([]entities.Camera, error) {
+	cameras, err := s.dao.GetCameraList(limit, offset, filter)
 	if err != nil {
 		log.Printf("Error get camera list: %v", err)
 		return nil, err
@@ -48,8 +48,8 @@ func (s *CameraService) GetCameraList(limit, offset int) ([]entities.Camera, err
 	return cameras, err
 }
 
-func (s *CameraService) GetCameraCount() (int, error) {
-	count, err := s.dao.GetCount()
+func (s *CameraService) GetCameraCount(filter *entities.Filter) (int, error) {
+	count, err := s.dao.GetCount(filter)
 	if err != nil {
 		log.Printf("Error get camera count: %v", err)
 		return 0, err

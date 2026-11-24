@@ -83,6 +83,11 @@ func (c *CameraController) GetCameraByID(ctx *gin.Context) {
 // GetCameraList godoc
 // @Summary Get paginated list of cameras
 // @Produce json
+// @Param camera_id query integer false "Camera ID"
+// @Param ip query string false "Camera IP"
+// @Param is_enabled query boolean false "Camera enabled state"
+// @Param created_from query string false "Inclusive creation time lower bound"
+// @Param created_to query string false "Inclusive creation time upper bound"
 // @Description Retrieves a paginated list of cameras
 // @Param limit query integer false "limit"
 // @Param offset query integer false "offset"
@@ -93,12 +98,19 @@ func (c *CameraController) GetCameraByID(ctx *gin.Context) {
 // @Security BearerAuth
 // @Tags Camera
 func (c *CameraController) GetCameraList(ctx *gin.Context) {
+	filter, err := helpers.ExtractFilterFromQueryParams(ctx.Request.URL.Query())
+	if err != nil {
+		log.Printf("Invalid filter: %v", err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
 	limit, offset, err := helpers.ExtractPagination(ctx.Request)
 	if err != nil {
 		log.Printf("Invalid pagination. Set to default")
 	}
 
-	cameras, err := c.cameraService.GetCameraList(int(limit), int(offset))
+	cameras, err := c.cameraService.GetCameraList(int(limit), int(offset), filter)
 	if err != nil {
 		log.Printf("Error get camera list: %v", err)
 		ctx.Status(http.StatusInternalServerError)
@@ -112,15 +124,26 @@ func (c *CameraController) GetCameraList(ctx *gin.Context) {
 // @Summary Get cameras count
 // @Description Returns the total number of cameras in the system
 // @Produce json
-// @Param host query string false "host"
-// @Param port query string false "port"
+// @Param camera_id query integer false "Camera ID"
+// @Param ip query string false "Camera IP"
+// @Param is_enabled query boolean false "Camera enabled state"
+// @Param created_from query string false "Inclusive creation time lower bound"
+// @Param created_to query string false "Inclusive creation time upper bound"
 // @Success 200 {integer} integer "Number of cameras"
+// @Failure 400 "Invalid filter parameters"
 // @Failure 500 "Internal server error"
 // @Router /api/camera/count [get]
 // @Security BearerAuth
 // @Tags Camera
 func (c *CameraController) GetCameraCount(ctx *gin.Context) {
-	count, err := c.cameraService.GetCameraCount()
+	filter, err := helpers.ExtractFilterFromQueryParams(ctx.Request.URL.Query())
+	if err != nil {
+		log.Printf("Invalid filter: %v", err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	count, err := c.cameraService.GetCameraCount(filter)
 	if err != nil {
 		log.Printf("Error get camera count: %v", err)
 		ctx.Status(http.StatusInternalServerError)

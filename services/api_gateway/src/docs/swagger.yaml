@@ -1,56 +1,74 @@
 definitions:
-  dtos.CameraCreationAdminDTO:
+  entities.Camera:
     properties:
-      http_port:
+      comment:
+        type: string
+      created_at:
+        type: string
+      fps:
         type: integer
+      id:
+        type: integer
+      ip:
+        type: string
       is_enabled:
         type: boolean
-      opening_door_command:
-        type: string
-      rtsp_connection_string:
-        type: string
-      rtsp_port:
+      port:
         type: integer
-      snapshot_command:
+      stream_url:
         type: string
-      url:
+      updated_at:
         type: string
-    required:
-    - url
     type: object
-  dtos.PersonCameraDTO:
+  entities.Event:
     properties:
       camera_id:
         type: integer
-      is_enabled:
-        type: boolean
-      person_id:
-        type: integer
-    type: object
-  models.PersonCreationModel:
-    properties:
+      confidence:
+        type: number
+      created_at:
+        type: string
       embedding:
         items:
           type: number
         type: array
-      firstname:
+      object_id:
+        type: integer
+      photo_uuid:
         type: string
-      is_enabled:
-        type: boolean
-      lastname:
+      type:
         type: string
-      photo:
+      updated_at:
+        type: string
+      uuid:
         type: string
     required:
+    - camera_id
     - embedding
-    - firstname
-    - lastname
-    - photo
+    - object_id
+    - photo_uuid
+    - type
+    type: object
+  entities.Object:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      type:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - type
     type: object
 info:
   contact: {}
+  description: swagger for api gateway.
+  title: api gateway
+  version: "1.0"
 paths:
-  /camera/{id}:
+  /api/camera/{id}:
     delete:
       consumes:
       - application/json
@@ -69,12 +87,14 @@ paths:
           description: Bad Request
         "404":
           description: Not Found
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
       summary: Delete camera object by ID.
       tags:
       - Camera
     get:
-      consumes:
-      - application/json
       parameters:
       - description: Camera ID
         in: path
@@ -87,209 +107,149 @@ paths:
         "200":
           description: OK
           schema:
-            type: string
+            $ref: '#/definitions/entities.Camera'
         "400":
           description: Bad Request
         "404":
           description: Not Found
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
       summary: Get camera info by ID.
       tags:
       - Camera
-    put:
-      consumes:
-      - application/json
+  /api/camera/count:
+    get:
+      description: Returns the total number of cameras in the system
       parameters:
       - description: Camera ID
-        in: path
-        name: id
-        required: true
+        in: query
+        name: camera_id
         type: integer
-      - description: camera entity
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.CameraCreationAdminDTO'
+      - description: Camera IP
+        in: query
+        name: ip
+        type: string
+      - description: Camera enabled state
+        in: query
+        name: is_enabled
+        type: boolean
+      - description: Inclusive creation time lower bound
+        in: query
+        name: created_from
+        type: string
+      - description: Inclusive creation time upper bound
+        in: query
+        name: created_to
+        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Number of cameras
+          schema:
+            type: integer
         "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-      summary: Update camera object by ID.
+          description: Invalid filter parameters
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Get cameras count
       tags:
       - Camera
-  /camera/create:
+  /api/camera/create:
     post:
+      description: Creates a new person in the system
       parameters:
       - description: camera entity
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dtos.CameraCreationAdminDTO'
+          $ref: '#/definitions/entities.Camera'
       responses:
         "201":
           description: Created
+          schema:
+            type: integer
         "400":
           description: Bad Request
         "500":
           description: Internal Server Error
+      security:
+      - BearerAuth: []
       summary: Create camera with passed properties.
       tags:
       - Camera
-  /camera/disable/{id}:
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Camera ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-      summary: Disable camera object by ID.
-      tags:
-      - Camera
-  /camera/enable/{id}:
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Camera ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-      summary: Enable camera object by ID.
-      tags:
-      - Camera
-  /camera/get_cameras:
+  /api/camera/list:
     get:
-      consumes:
-      - application/json
+      description: Retrieves a paginated list of cameras
       parameters:
-      - description: Number of items to return (max)
-        example: 10
+      - description: Camera ID
+        in: query
+        name: camera_id
+        type: integer
+      - description: Camera IP
+        in: query
+        name: ip
+        type: string
+      - description: Camera enabled state
+        in: query
+        name: is_enabled
+        type: boolean
+      - description: Inclusive creation time lower bound
+        in: query
+        name: created_from
+        type: string
+      - description: Inclusive creation time upper bound
+        in: query
+        name: created_to
+        type: string
+      - description: limit
         in: query
         name: limit
-        required: true
         type: integer
-      - description: Offset for pagination
-        example: 0
+      - description: offset
         in: query
         name: offset
-        required: true
         type: integer
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: List of cameras
+          schema:
+            items:
+              $ref: '#/definitions/entities.Camera'
+            type: array
         "400":
-          description: Bad Request
-        "404":
-          description: Not Found
+          description: Invalid pagination parameters
         "500":
-          description: Internal Server Error
-      summary: Get paginated cameras .
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Get paginated list of cameras
       tags:
       - Camera
-  /person/{id}:
-    delete:
-      consumes:
-      - application/json
-      parameters:
-      - description: Person ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-      summary: Delete person object by ID.
-      tags:
-      - Person
-    get:
-      consumes:
-      - application/json
-      parameters:
-      - description: Person ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-      summary: Get person info by ID.
-      tags:
-      - Person
-  /person/create:
-    post:
-      parameters:
-      - description: person entity
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.PersonCreationModel'
-      responses:
-        "201":
-          description: Created
-        "400":
-          description: Bad Request
-        "500":
-          description: Internal Server Error
-      summary: Create person with passed properties.
-      tags:
-      - Person
-  /person/update/{id}:
+  /api/camera/update/{id}:
     put:
       consumes:
       - application/json
+      description: Updates information for an existing person record
       parameters:
-      - description: Person ID
+      - description: Camera ID
         in: path
         name: id
         required: true
         type: integer
+      - description: camera entity
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/entities.Camera'
       produces:
       - application/json
       responses:
@@ -299,15 +259,256 @@ paths:
           description: Bad Request
         "404":
           description: Not Found
-      summary: Update person object by ID.
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Update camera by ID.
       tags:
-      - Person
-  /person_camera/{id}:
+      - Camera
+  /api/event:
+    post:
+      description: Creates a new event in the system
+      parameters:
+      - description: event entity
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/entities.Event'
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Create event with passed properties.
+      tags:
+      - Event
+  /api/event/{uuid}:
     delete:
       consumes:
       - application/json
       parameters:
-      - description: PersonCamera ID
+      - description: Event UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Delete event by UUID.
+      tags:
+      - Event
+    get:
+      parameters:
+      - description: Event UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entities.Event'
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Get event info by UUID.
+      tags:
+      - Event
+    put:
+      consumes:
+      - application/json
+      description: Updates information for an existing event record
+      parameters:
+      - description: Event UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: event entity
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/entities.Event'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Update event by UUID.
+      tags:
+      - Event
+  /api/event/count:
+    get:
+      description: Returns the total number of events in the system
+      parameters:
+      - description: Camera ID
+        in: query
+        name: camera_id
+        type: integer
+      - description: Object ID
+        in: query
+        name: object_id
+        type: integer
+      - description: Exact event type
+        in: query
+        name: type
+        type: string
+      - description: Inclusive confidence lower bound
+        in: query
+        name: confidence_min
+        type: number
+      - description: Inclusive confidence upper bound
+        in: query
+        name: confidence_max
+        type: number
+      - description: Inclusive creation time lower bound
+        in: query
+        name: created_from
+        type: string
+      - description: Inclusive creation time upper bound
+        in: query
+        name: created_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Number of events
+          schema:
+            type: integer
+        "400":
+          description: Invalid filter parameters
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Get events count
+      tags:
+      - Event
+  /api/event/list:
+    get:
+      description: Retrieves a paginated list of events
+      parameters:
+      - description: Camera ID
+        in: query
+        name: camera_id
+        type: integer
+      - description: Object ID
+        in: query
+        name: object_id
+        type: integer
+      - description: Exact event type
+        in: query
+        name: type
+        type: string
+      - description: Inclusive confidence lower bound
+        in: query
+        name: confidence_min
+        type: number
+      - description: Inclusive confidence upper bound
+        in: query
+        name: confidence_max
+        type: number
+      - description: Inclusive creation time lower bound
+        in: query
+        name: created_from
+        type: string
+      - description: Inclusive creation time upper bound
+        in: query
+        name: created_to
+        type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of events
+          schema:
+            items:
+              $ref: '#/definitions/entities.Event'
+            type: array
+        "400":
+          description: Invalid pagination parameters
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Get paginated list of events
+      tags:
+      - Event
+  /api/object:
+    post:
+      description: Creates a new object in the system
+      parameters:
+      - description: object entity
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/entities.Object'
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: integer
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Create object with passed properties.
+      tags:
+      - Object
+  /api/object/{id}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: Object ID
         in: path
         name: id
         required: true
@@ -321,14 +522,16 @@ paths:
           description: Bad Request
         "404":
           description: Not Found
-      summary: Delete person object by ID.
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Delete object object by ID.
       tags:
-      - PersonCamera
+      - Object
     get:
-      consumes:
-      - application/json
       parameters:
-      - description: PersonCamera ID
+      - description: Object ID
         in: path
         name: id
         required: true
@@ -339,31 +542,136 @@ paths:
         "200":
           description: OK
           schema:
-            type: string
+            $ref: '#/definitions/entities.Object'
         "400":
           description: Bad Request
         "404":
           description: Not Found
-      summary: Get person info by ID.
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Get object info by ID.
       tags:
-      - PersonCamera
-  /person_camera/create:
-    post:
+      - Object
+    put:
+      consumes:
+      - application/json
+      description: Updates information for an existing object record
       parameters:
-      - description: person entity
+      - description: Object ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: object entity
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dtos.PersonCameraDTO'
+          $ref: '#/definitions/entities.Object'
+      produces:
+      - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
         "400":
           description: Bad Request
+        "404":
+          description: Not Found
         "500":
-          description: Internal Server Error
-      summary: Create person with passed properties.
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Update object by ID.
       tags:
-      - PersonCamera
+      - Object
+  /api/object/count:
+    get:
+      description: Returns the total number of objects in the system
+      parameters:
+      - description: Object ID
+        in: query
+        name: object_id
+        type: integer
+      - description: Exact object type
+        in: query
+        name: type
+        type: string
+      - description: Inclusive creation time lower bound
+        in: query
+        name: created_from
+        type: string
+      - description: Inclusive creation time upper bound
+        in: query
+        name: created_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Number of objects
+          schema:
+            type: integer
+        "400":
+          description: Invalid filter parameters
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Get objects count
+      tags:
+      - Object
+  /api/object/list:
+    get:
+      description: Retrieves a paginated list of objects
+      parameters:
+      - description: Object ID
+        in: query
+        name: object_id
+        type: integer
+      - description: Exact object type
+        in: query
+        name: type
+        type: string
+      - description: Inclusive creation time lower bound
+        in: query
+        name: created_from
+        type: string
+      - description: Inclusive creation time upper bound
+        in: query
+        name: created_to
+        type: string
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of objects
+          schema:
+            items:
+              $ref: '#/definitions/entities.Object'
+            type: array
+        "400":
+          description: Invalid pagination parameters
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Get paginated list of objects
+      tags:
+      - Object
+securityDefinitions:
+  BearerAuth:
+    description: 'Format: "Bearer <token>"'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

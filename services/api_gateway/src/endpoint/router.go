@@ -37,12 +37,18 @@ func SwaggerHandler(c *gin.Context) {
 func NewRouter(db *sql.DB) Router {
 	// DAOs
 	cameraDAO := pgDAO.NewCameraDAO(db)
+	objectDAO := pgDAO.NewObjectDAO(db)
+	eventDAO := pgDAO.NewEventDAO(db)
 
 	// Services
 	cameraService := services.NewCameraService(cameraDAO)
+	objectService := services.NewObjectService(objectDAO)
+	eventService := services.NewEventService(eventDAO)
 
 	// Controllers
 	cameraController := controllers.NewCameraController(cameraService)
+	objectController := controllers.NewObjectController(objectService)
+	eventController := controllers.NewEventController(eventService)
 
 	// Gin Settings
 	gin.DefaultWriter = log.Writer()
@@ -64,6 +70,28 @@ func NewRouter(db *sql.DB) Router {
 		cameraGroup.GET("/list", cameraController.GetCameraList)
 		cameraGroup.PUT("/:id", cameraController.UpdateCamera)
 		cameraGroup.DELETE("/:id", cameraController.DeleteCamera)
+	}
+
+	// Object Routes
+	objectGroup := apiGroup.Group("/object")
+	{
+		objectGroup.POST("", objectController.CreateObject)
+		objectGroup.GET("/:id", objectController.GetObjectByID)
+		objectGroup.GET("/count", objectController.GetObjectCount)
+		objectGroup.GET("/list", objectController.GetObjectList)
+		objectGroup.PUT("/:id", objectController.UpdateObject)
+		objectGroup.DELETE("/:id", objectController.DeleteObject)
+	}
+
+	// Event Routes
+	eventGroup := apiGroup.Group("/event")
+	{
+		eventGroup.POST("", eventController.CreateEvent)
+		eventGroup.GET("/:uuid", eventController.GetEventByUUID)
+		eventGroup.GET("/count", eventController.GetEventCount)
+		eventGroup.GET("/list", eventController.GetEventList)
+		eventGroup.PUT("/:uuid", eventController.UpdateEvent)
+		eventGroup.DELETE("/:uuid", eventController.DeleteEvent)
 	}
 
 	healthGroup := router.Group("")

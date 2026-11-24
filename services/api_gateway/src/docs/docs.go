@@ -15,8 +15,77 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/camera/create": {
+        "/api/camera/count": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the total number of cameras in the system",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Camera"
+                ],
+                "summary": "Get cameras count",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Camera ID",
+                        "name": "camera_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Camera IP",
+                        "name": "ip",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Camera enabled state",
+                        "name": "is_enabled",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time lower bound",
+                        "name": "created_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time upper bound",
+                        "name": "created_to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Number of cameras",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid filter parameters"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/api/camera/create": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new person in the system",
                 "tags": [
                     "Camera"
                 ],
@@ -28,13 +97,16 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dtos.CameraCreationAdminDTO"
+                            "$ref": "#/definitions/entities.Camera"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created"
+                        "description": "Created",
+                        "schema": {
+                            "type": "integer"
+                        }
                     },
                     "400": {
                         "description": "Bad Request"
@@ -45,102 +117,118 @@ const docTemplate = `{
                 }
             }
         },
-        "/camera/disable/{id}": {
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Camera"
-                ],
-                "summary": "Disable camera object by ID.",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Camera ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
-        },
-        "/camera/enable/{id}": {
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Camera"
-                ],
-                "summary": "Enable camera object by ID.",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Camera ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
-        },
-        "/camera/get_cameras": {
+        "/api/camera/list": {
             "get": {
-                "consumes": [
-                    "application/json"
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
+                "description": "Retrieves a paginated list of cameras",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Camera"
                 ],
-                "summary": "Get paginated cameras .",
+                "summary": "Get paginated list of cameras",
                 "parameters": [
                     {
                         "type": "integer",
-                        "example": 10,
-                        "description": "Number of items to return (max)",
+                        "description": "Camera ID",
+                        "name": "camera_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Camera IP",
+                        "name": "ip",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Camera enabled state",
+                        "name": "is_enabled",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time lower bound",
+                        "name": "created_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time upper bound",
+                        "name": "created_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "limit",
                         "name": "limit",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "integer",
-                        "example": 0,
-                        "description": "Offset for pagination",
+                        "description": "offset",
                         "name": "offset",
-                        "in": "query",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of cameras",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/entities.Camera"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid pagination parameters"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/api/camera/update/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates information for an existing person record",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Camera"
+                ],
+                "summary": "Update camera by ID.",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Camera ID",
+                        "name": "id",
+                        "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "camera entity",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/entities.Camera"
+                        }
                     }
                 ],
                 "responses": {
@@ -154,15 +242,17 @@ const docTemplate = `{
                         "description": "Not Found"
                     },
                     "500": {
-                        "description": "Internal Server Error"
+                        "description": "Internal server error"
                     }
                 }
             }
         },
-        "/camera/{id}": {
+        "/api/camera/{id}": {
             "get": {
-                "consumes": [
-                    "application/json"
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
                 "produces": [
                     "application/json"
@@ -184,7 +274,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/entities.Camera"
                         }
                     },
                     "400": {
@@ -192,51 +282,18 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found"
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Camera"
-                ],
-                "summary": "Update camera object by ID.",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Camera ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
                     },
-                    {
-                        "description": "camera entity",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.CameraCreationAdminDTO"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "description": "Not Found"
+                    "500": {
+                        "description": "Internal server error"
                     }
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -265,30 +322,42 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
                     }
                 }
             }
         },
-        "/person/create": {
+        "/api/event": {
             "post": {
-                "tags": [
-                    "Person"
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
-                "summary": "Create person with passed properties.",
+                "description": "Creates a new event in the system",
+                "tags": [
+                    "Event"
+                ],
+                "summary": "Create event with passed properties.",
                 "parameters": [
                     {
-                        "description": "person entity",
+                        "description": "event entity",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.PersonCreationModel"
+                            "$ref": "#/definitions/entities.Event"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created"
+                        "description": "Created",
+                        "schema": {
+                            "type": "string"
+                        }
                     },
                     "400": {
                         "description": "Bad Request"
@@ -299,8 +368,219 @@ const docTemplate = `{
                 }
             }
         },
-        "/person/update/{id}": {
+        "/api/event/count": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the total number of events in the system",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Event"
+                ],
+                "summary": "Get events count",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Camera ID",
+                        "name": "camera_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Object ID",
+                        "name": "object_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact event type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Inclusive confidence lower bound",
+                        "name": "confidence_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Inclusive confidence upper bound",
+                        "name": "confidence_max",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time lower bound",
+                        "name": "created_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time upper bound",
+                        "name": "created_to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Number of events",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid filter parameters"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/api/event/list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves a paginated list of events",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Event"
+                ],
+                "summary": "Get paginated list of events",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Camera ID",
+                        "name": "camera_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Object ID",
+                        "name": "object_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact event type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Inclusive confidence lower bound",
+                        "name": "confidence_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Inclusive confidence upper bound",
+                        "name": "confidence_max",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time lower bound",
+                        "name": "created_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time upper bound",
+                        "name": "created_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of events",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/entities.Event"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid pagination parameters"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/api/event/{uuid}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Event"
+                ],
+                "summary": "Get event info by UUID.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Event UUID",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/entities.Event"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            },
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates information for an existing event record",
                 "consumes": [
                     "application/json"
                 ],
@@ -308,120 +588,112 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Person"
+                    "Event"
                 ],
-                "summary": "Update person object by ID.",
+                "summary": "Update event by UUID.",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Person ID",
-                        "name": "id",
+                        "type": "string",
+                        "description": "Event UUID",
+                        "name": "uuid",
                         "in": "path",
                         "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
                     },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
-        },
-        "/person/{id}": {
-            "get": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Person"
-                ],
-                "summary": "Get person info by ID.",
-                "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Person ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            },
-            "delete": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Person"
-                ],
-                "summary": "Delete person object by ID.",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Person ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
-        },
-        "/person_camera/create": {
-            "post": {
-                "tags": [
-                    "PersonCamera"
-                ],
-                "summary": "Create person with passed properties.",
-                "parameters": [
-                    {
-                        "description": "person entity",
+                        "description": "event entity",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dtos.PersonCameraDTO"
+                            "$ref": "#/definitions/entities.Event"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Event"
+                ],
+                "summary": "Delete event by UUID.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Event UUID",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/api/object": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new object in the system",
+                "tags": [
+                    "Object"
+                ],
+                "summary": "Create object with passed properties.",
+                "parameters": [
+                    {
+                        "description": "object entity",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/entities.Object"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created"
+                        "description": "Created",
+                        "schema": {
+                            "type": "integer"
+                        }
                     },
                     "400": {
                         "description": "Bad Request"
@@ -432,22 +704,153 @@ const docTemplate = `{
                 }
             }
         },
-        "/person_camera/{id}": {
+        "/api/object/count": {
             "get": {
-                "consumes": [
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the total number of objects in the system",
+                "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "Object"
+                ],
+                "summary": "Get objects count",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Object ID",
+                        "name": "object_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact object type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time lower bound",
+                        "name": "created_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time upper bound",
+                        "name": "created_to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Number of objects",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid filter parameters"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/api/object/list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves a paginated list of objects",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Object"
+                ],
+                "summary": "Get paginated list of objects",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Object ID",
+                        "name": "object_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact object type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time lower bound",
+                        "name": "created_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive creation time upper bound",
+                        "name": "created_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of objects",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/entities.Object"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid pagination parameters"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            }
+        },
+        "/api/object/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "PersonCamera"
+                    "Object"
                 ],
-                "summary": "Get person info by ID.",
+                "summary": "Get object info by ID.",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "PersonCamera ID",
+                        "description": "Object ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -457,7 +860,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/entities.Object"
                         }
                     },
                     "400": {
@@ -465,10 +868,19 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
                     }
                 }
             },
-            "delete": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates information for an existing object record",
                 "consumes": [
                     "application/json"
                 ],
@@ -476,13 +888,62 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "PersonCamera"
+                    "Object"
                 ],
-                "summary": "Delete person object by ID.",
+                "summary": "Update object by ID.",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "PersonCamera ID",
+                        "description": "Object ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "object entity",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/entities.Object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Object"
+                ],
+                "summary": "Delete object object by ID.",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Object ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -497,95 +958,128 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
                     }
                 }
             }
         }
     },
     "definitions": {
-        "dtos.CameraCreationAdminDTO": {
+        "entities.Camera": {
             "type": "object",
-            "required": [
-                "url"
-            ],
             "properties": {
-                "http_port": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "fps": {
                     "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip": {
+                    "type": "string"
                 },
                 "is_enabled": {
                     "type": "boolean"
                 },
-                "opening_door_command": {
-                    "type": "string"
-                },
-                "rtsp_connection_string": {
-                    "type": "string"
-                },
-                "rtsp_port": {
+                "port": {
                     "type": "integer"
                 },
-                "snapshot_command": {
+                "stream_url": {
                     "type": "string"
                 },
-                "url": {
+                "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "dtos.PersonCameraDTO": {
+        "entities.Event": {
             "type": "object",
+            "required": [
+                "camera_id",
+                "embedding",
+                "object_id",
+                "photo_uuid",
+                "type"
+            ],
             "properties": {
                 "camera_id": {
                     "type": "integer"
                 },
-                "is_enabled": {
-                    "type": "boolean"
+                "confidence": {
+                    "type": "number"
                 },
-                "person_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.PersonCreationModel": {
-            "type": "object",
-            "required": [
-                "embedding",
-                "firstname",
-                "lastname",
-                "photo"
-            ],
-            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
                 "embedding": {
                     "type": "array",
                     "items": {
                         "type": "number"
                     }
                 },
-                "firstname": {
+                "object_id": {
+                    "type": "integer"
+                },
+                "photo_uuid": {
                     "type": "string"
                 },
-                "is_enabled": {
-                    "type": "boolean"
-                },
-                "lastname": {
+                "type": {
                     "type": "string"
                 },
-                "photo": {
+                "updated_at": {
+                    "type": "string"
+                },
+                "uuid": {
                     "type": "string"
                 }
             }
+        },
+        "entities.Object": {
+            "type": "object",
+            "required": [
+                "type"
+            ],
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Format: \"Bearer \u003ctoken\u003e\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
+	Version:          "1.0",
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "api gateway",
+	Description:      "swagger for api gateway.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
