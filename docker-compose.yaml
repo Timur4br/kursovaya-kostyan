@@ -50,6 +50,25 @@ services:
     volumes:
       - logs_ds:/api_gateway/logs
 
+  web:
+    build:
+      context: ./services/web
+      dockerfile: Dockerfile
+    environment:
+      API_GATEWAY_URL: http://api_gateway:${API_PORT}
+      WEB_ADDRESS: :8080
+    ports:
+      - "${WEB_PORT:-8088}:8080"
+    depends_on:
+      api_gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
 volumes:
   logs_ds:
     driver: local
