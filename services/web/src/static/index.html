@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafbf9">
+  <title>Обзор камер · Костян</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#camera-list">Перейти к камерам</a>
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="Костян — камеры">костян<span>/ камеры</span></a>
+    <button class="button primary" id="open-camera-dialog">Добавить камеру</button>
+  </header>
+  <main>
+    <div class="workspace">
+      <section class="panel cameras-panel" aria-labelledby="cameras-heading">
+        <div class="panel-heading"><div><h1 id="cameras-heading">Камеры <span class="muted" id="camera-list-caption"></span></h1></div><button class="button text-button" id="refresh">Обновить</button></div>
+        <div class="camera-tools"><label class="sr-only" for="camera-status">Состояние камер</label><select id="camera-status"><option value="">Все камеры</option><option value="true">Включённые</option><option value="false">Отключённые</option></select></div>
+        <div class="notice error" id="camera-error" role="alert" hidden></div>
+        <div class="camera-list" id="camera-list" aria-live="polite" aria-busy="true"><p class="loading">Загрузка…</p></div>
+        <div class="pagination camera-pagination"><button class="button quiet" id="camera-prev" disabled>Назад</button><span id="camera-page" class="muted">—</span><button class="button quiet" id="camera-next" disabled>Далее</button></div>
+      </section>
+      <section class="panel events-panel" aria-labelledby="events-heading">
+        <div class="panel-heading event-heading"><div><h2 id="events-heading">События</h2><p class="muted" id="selected-camera-detail">Выберите камеру</p></div><span class="section-label">События</span></div>
+        <form id="event-filter" class="event-filters"><label>С<input id="created-from" type="datetime-local" name="from"></label><label>По<input id="created-to" type="datetime-local" name="to"></label><button class="button secondary" type="submit" id="apply-filter" disabled>Показать</button><button class="button text-button" type="button" id="reset-filter" disabled>Сбросить</button></form>
+        <div class="notice error" id="event-error" role="alert" hidden></div>
+        <div id="events-content" aria-live="polite" aria-busy="false"><div class="empty-state"><h3>Выберите камеру</h3><p>Здесь будут её события.</p></div></div>
+        <div class="event-footer"><span class="muted" id="event-page">Местное время</span><div class="pagination"><button class="button quiet" id="event-prev" disabled>Назад</button><button class="button quiet" id="event-next" disabled>Далее</button></div></div>
+      </section>
+    </div>
+  </main>
+  <dialog id="camera-dialog" aria-labelledby="dialog-title">
+    <form id="camera-form">
+      <div class="dialog-heading"><div><h2 id="dialog-title">Добавить камеру</h2></div><button type="button" class="icon-button" id="close-dialog" aria-label="Закрыть">✕</button></div>
+      <label>Название<input name="comment" placeholder="Вход в корпус" maxlength="300" autocomplete="off"></label>
+      <div class="form-row"><label>IP-адрес или хост <span class="required">*</span><input name="ip" placeholder="192.168.1.10" required autocomplete="off" maxlength="253"></label><label class="port-field">HTTP-порт <span class="required">*</span><input name="port" type="number" min="1" max="65535" value="80" required></label></div>
+      <label>Адрес видеопотока<input name="stream_url" type="url" placeholder="rtsp://192.168.1.10/stream" autocomplete="off"></label>
+      <label class="checkbox-label"><input name="is_enabled" type="checkbox" checked><span>Камера включена</span></label>
+      <div class="notice error" id="form-error" role="alert" hidden></div>
+      <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-dialog">Отмена</button><button type="submit" class="button primary" id="save-camera">Добавить камеру</button></div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>
