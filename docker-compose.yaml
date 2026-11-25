@@ -57,6 +57,7 @@ services:
     environment:
       API_GATEWAY_URL: http://api_gateway:${API_PORT}
       WEB_ADDRESS: :8080
+      CAMERA_LOCAL_HOST: host.docker.internal
     ports:
       - "${WEB_PORT:-8088}:8080"
     depends_on:
