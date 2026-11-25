@@ -1,50 +1,116 @@
 name: Checks
+
 on:
   push:
-    branches: [main, "feat/**"]
+    branches: [main, "2-refactor", "feat/**"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   go:
-    name: Go tests and vet
+    name: Go / ${{ matrix.service }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api_gateway
+            module: services/api_gateway/src
+            cache-file: services/api_gateway/src/go.sum
+          - service: web
+            module: services/web/src
+            cache-file: services/web/src/go.mod
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    env:
+      GOFLAGS: -mod=readonly
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
-          go-version: "1.27.4"
-          cache: true
+          go-version-file: ${{ matrix.module }}/go.mod
+          cache-dependency-path: ${{ matrix.cache-file }}
       - name: Check formatting
-        run: test -z "$(gofmt -l services migrations/embed.go)"
-      - run: go test ./...
-      - run: go vet ./...
-      - name: Build gateway
-        run: go build -o /tmp/gateway ./services/api_gateway/cmd/gateway
+        shell: bash
+        run: |
+          files=$(gofmt -l .)
+          if [ -n "$files" ]; then
+            printf '%s\n' "$files"
+            exit 1
+          fi
+      - name: Go tests
+        run: go test -count=1 ./...
+      - name: Go vet
+        run: go vet ./...
+      - name: Build service
+        run: go build -trimpath -o "$RUNNER_TEMP/${{ matrix.service }}" .
+      - uses: actions/setup-node@v7
+        if: matrix.service == 'web'
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: JavaScript checks and tests
+        if: matrix.service == 'web'
+        run: |
+          node --check static/app.js
+          node --check static/camera-video.js
+          node --check static/camera-source.mjs
+          node --test tests/*.test.mjs
 
   compose:
-    name: Compose and PostgreSQL integration
+    name: Compose / PostgreSQL / FFmpeg
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: kostyan-ci
     steps:
-      - uses: actions/checkout@v4
-      - name: Configure isolated CI database
+      - uses: actions/checkout@v7
+      - name: Configure temporary CI environment
+        shell: bash
         run: |
+          mkdir -p .local/ci/postgres .local/ci/logs
+          db_password=$(openssl rand -hex 24)
+          echo "::add-mask::$db_password"
           {
             echo 'POSTGRES_DB=coursework_ci'
             echo 'POSTGRES_USER=coursework_ci'
-            printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)"
+            printf 'POSTGRES_PASSWORD=%s\n' "$db_password"
+            echo 'POSTGRES_PORT=55432'
+            echo 'POSTGRES_DATA_FOLDER=./.local/ci/postgres'
+            echo 'HOST_LOGS_PATH=./.local/ci/logs'
+            echo 'LOGS_FILE_PATH=/api_gateway/logs/api.log'
             echo 'API_PORT=18080'
+            echo 'WEB_PORT=18088'
           } > .env
-      - name: Verify full stack
-        run: sh scripts/verify.sh
-      - name: Verify HTTP readiness
-        run: curl --fail --silent --show-error http://127.0.0.1:18080/readyz
-      - name: Container logs
+      - name: Validate Compose configurations
+        run: |
+          docker compose config --quiet
+          docker compose --project-name kostyan-tests -f docker-compose.test.yaml config --quiet
+      - name: Build and start application
+        run: docker compose up --build -d --wait --wait-timeout 180
+      - name: Check running application through HTTP
+        run: python3 scripts/ci-smoke.py
+      - name: PostgreSQL, web and FFmpeg integration tests
+        run: >-
+          docker compose --project-name kostyan-tests -f docker-compose.test.yaml
+          up --build --abort-on-container-exit --exit-code-from tests
+      - name: Container status and logs
         if: always()
-        run: docker compose logs --no-color --tail=100
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail=100
+          docker compose --project-name kostyan-tests -f docker-compose.test.yaml logs --no-color --tail=100
       - name: Stop CI containers
         if: always()
-        run: docker compose down
+        run: |
+          docker compose --project-name kostyan-tests -f docker-compose.test.yaml down --volumes --remove-orphans
+          docker compose down --volumes --remove-orphans
