@@ -1,0 +1,35 @@
+name: kursovaya-kostyan-api-tests
+
+services:
+  db:
+    image: pgvector/pgvector:pg17-trixie
+    environment:
+      POSTGRES_DB: api_gateway_test
+      POSTGRES_USER: api_gateway_test
+      POSTGRES_PASSWORD: test_only
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U api_gateway_test -d api_gateway_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  tests:
+    build:
+      context: ./services/web
+      target: tests
+    working_dir: /project/services/api_gateway/src
+    environment:
+      FFMPEG_TESTS: "1"
+      TEST_DATABASE_URL: postgres://api_gateway_test:test_only@db:5432/api_gateway_test?sslmode=disable
+    volumes:
+      - ./services/api_gateway/src:/project/services/api_gateway/src:ro
+      - ./scripts/init-db.sql:/project/scripts/init-db.sql:ro
+      - ./services/web/src:/project/services/web/src:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-ec", "go test -count=1 -v ./... && cd /project/services/web/src && go test -count=1 -v ./... && node --test tests/*.test.mjs"]
