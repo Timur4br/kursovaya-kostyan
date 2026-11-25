@@ -26,6 +26,12 @@
       </section>
       <section class="panel events-panel" aria-labelledby="events-heading">
         <div class="panel-heading event-heading"><div><h2 id="events-heading">События</h2><p class="muted" id="selected-camera-detail">Выберите камеру</p></div><div class="camera-actions"><button class="button text-button" id="edit-camera" disabled>Изменить</button><button class="button text-button delete-link" id="delete-camera" disabled>Удалить</button></div></div>
+        <section id="live-panel" class="live-panel" aria-label="Видео камеры" hidden>
+          <div class="live-toolbar"><h3>Видео</h3><div><button class="button secondary" id="start-live" type="button">Смотреть</button><button class="button text-button" id="stop-live" type="button" disabled>Остановить</button></div></div>
+          <div class="live-screen"><video id="local-video" muted autoplay playsinline hidden></video><img id="network-video" alt="Видео выбранной камеры" hidden><p id="live-placeholder">Нажмите «Смотреть»</p></div>
+          <p class="muted" id="live-status" role="status"></p>
+        </section>
+        <h3 class="journal-heading">События</h3>
         <form id="event-filter" class="event-filters"><label>С<input id="created-from" type="datetime-local" name="from"></label><label>По<input id="created-to" type="datetime-local" name="to"></label><button class="button secondary" type="submit" id="apply-filter" disabled>Показать</button><button class="button text-button" type="button" id="reset-filter" disabled>Сбросить</button></form>
         <div class="notice error" id="event-error" role="alert" hidden></div>
         <div id="events-content" aria-live="polite" aria-busy="false"><div class="empty-state"><h3>Выберите камеру</h3><p>Здесь будут её события.</p></div></div>
@@ -36,9 +42,20 @@
   <dialog id="camera-dialog" aria-labelledby="dialog-title">
     <form id="camera-form">
       <div class="dialog-heading"><div><h2 id="dialog-title">Добавить камеру</h2></div><button type="button" class="icon-button" id="close-dialog" aria-label="Закрыть">✕</button></div>
+      <label>Тип подключения<select name="source_kind" id="source-kind"><option value="webcam">Веб-камера этого компьютера</option><option value="network">Сетевая камера</option></select></label>
       <label>Название<input name="comment" placeholder="Вход в корпус" maxlength="300" autocomplete="off"></label>
-      <div class="form-row"><label>IP-адрес или хост <span class="required">*</span><input name="ip" placeholder="192.168.1.10" required autocomplete="off" maxlength="253"></label><label class="port-field">HTTP-порт <span class="required">*</span><input name="port" type="number" min="1" max="65535" value="80" required></label></div>
-      <label>Адрес видеопотока<input name="stream_url" type="url" placeholder="rtsp://192.168.1.10/stream" autocomplete="off"></label>
+      <div id="webcam-fields">
+        <label>Веб-камера<select name="device_id" id="webcam-device"><option value="">Камера по умолчанию</option></select></label>
+        <button class="button secondary" type="button" id="find-webcams">Найти веб-камеры</button>
+        <p class="muted form-note">Камера компьютера, на котором открыт браузер. Доступ разрешается отдельно.</p>
+      </div>
+      <div id="network-fields" hidden>
+        <label>Адрес потока<input name="stream_url" type="text" placeholder="rtsp://192.168.1.10/stream" autocomplete="off"></label>
+        <details class="camera-details"><summary>Логин и дополнительные настройки</summary>
+          <div class="form-row"><label>Логин<input name="camera_login" autocomplete="off"></label><label>Пароль<input name="camera_password" type="password" autocomplete="off"></label></div>
+          <div class="form-row"><label>IP-адрес или хост<input name="ip" placeholder="Из адреса потока" autocomplete="off" maxlength="253"></label><label class="port-field">HTTP-порт<input name="port" type="number" min="1" max="65535" placeholder="80"></label></div>
+        </details>
+      </div>
       <label class="checkbox-label"><input name="is_enabled" type="checkbox" checked><span>Камера включена</span></label>
       <div class="notice error" id="form-error" role="alert" hidden></div>
       <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-dialog">Отмена</button><button type="submit" class="button primary" id="save-camera">Добавить камеру</button></div>

@@ -1,3 +1,5 @@
+import { cameraAddress, buildCameraPayload, editableSource, savedDevice, rememberDevice, parseNetworkURL } from './camera-source.mjs';
+import { renderLivePreview, populateWebcams } from './camera-video.js';
 const $ = (id) => document.getElementById(id);
 const CAMERA_PAGE_SIZE = 8;
 const EVENT_PAGE_SIZE = 15;
@@ -83,7 +85,7 @@ function renderCameras() {
     card.setAttribute('aria-pressed', String(selected));
     const info = node('span', 'camera-info');
     info.append(node('span', 'camera-name', cameraName(camera)),
-      node('span', 'camera-address', `${camera.ip}:${camera.port}`),
+      node('span', 'camera-address', cameraAddress(camera)),
       node('span', `camera-state${camera.is_enabled ? ' enabled' : ''}`, camera.is_enabled ? 'Включена' : 'Отключена'));
     card.append(info);
     card.addEventListener('click', () => selectCamera(camera));
@@ -92,6 +94,7 @@ function renderCameras() {
 }
 function selectCamera(camera) {
   state.selected = camera || null;
+  renderLivePreview(state.selected);
   state.eventPage = 0;
   renderCameras();
   $('edit-camera').disabled = !camera;
@@ -112,7 +115,7 @@ function selectCamera(camera) {
     return;
   }
   $('events-heading').textContent = cameraName(camera);
-  $('selected-camera-detail').textContent = `${camera.ip}:${camera.port}`;
+  $('selected-camera-detail').textContent = cameraAddress(camera);
   loadEvents();
 }
 async function loadCameras({ selectID = null, refreshEvents = false } = {}) {
@@ -284,18 +287,53 @@ function toast(message) {
 }
 function openCameraDialog(camera = null) {
   if (state.saving) return;
+  renderLivePreview(state.selected);
   const form = $('camera-form');
   form.reset();
   state.editingID = camera?.id ?? null;
+  const source = editableSource(camera);
+  $('source-kind').value = camera ? source.kind : 'webcam';
+  const devices = $('webcam-device');
+  devices.replaceChildren(new Option('Камера по умолчанию', ''));
   if (camera) {
-    for (const name of ['comment', 'ip', 'port', 'stream_url']) form.elements.namedItem(name).value = camera[name] ?? '';
+    for (const name of ['comment', 'ip', 'port']) form.elements.namedItem(name).value = camera[name] ?? '';
+    form.elements.namedItem('stream_url').value = source.kind === 'network' ? source.url : '';
+    form.elements.namedItem('camera_login').value = source.login;
+    form.elements.namedItem('camera_password').value = source.password;
     form.elements.namedItem('is_enabled').checked = camera.is_enabled;
+    const device = savedDevice(camera.id);
+    if (device) { devices.add(new Option('Сохранённая веб-камера', device)); devices.value = device; }
   }
+  updateSourceKind();
   $('dialog-title').textContent = camera ? 'Изменить камеру' : 'Добавить камеру';
   $('save-camera').textContent = camera ? 'Сохранить' : 'Добавить камеру';
   notice('form-error');
   $('camera-dialog').showModal();
 }
+function updateSourceKind() {
+  const webcam = $('source-kind').value === 'webcam';
+  $('webcam-fields').hidden = !webcam;
+  $('network-fields').hidden = webcam;
+  for (const input of $('network-fields').querySelectorAll('input')) input.disabled = webcam;
+  $('webcam-device').disabled = !webcam;
+  notice('form-error');
+}
+$('source-kind').addEventListener('change', updateSourceKind);
+$('find-webcams').addEventListener('click', async () => {
+  $('find-webcams').disabled = true;
+  $('find-webcams').textContent = 'Ищем камеры…';
+  notice('form-error');
+  try { await populateWebcams($('webcam-device')); }
+  catch (error) { notice('form-error', error.message); }
+  finally { $('find-webcams').disabled = false; $('find-webcams').textContent = 'Обновить список'; }
+});
+$('camera-form').elements.namedItem('stream_url').addEventListener('change', (event) => {
+  try {
+    const source = parseNetworkURL(event.target.value);
+    $('camera-form').elements.namedItem('ip').value = source.hostname;
+    $('camera-form').elements.namedItem('port').value = ['http:', 'https:'].includes(source.protocol) ? (source.port || (source.protocol === 'https:' ? 443 : 80)) : 80;
+  } catch { /* Show the full address error when the form is submitted. */ }
+});
 $('camera-dialog').addEventListener('cancel', (event) => { if (state.saving) event.preventDefault(); });
 $('open-camera-dialog').addEventListener('click', () => openCameraDialog());
 $('edit-camera').addEventListener('click', () => { if (state.selected) openCameraDialog(state.selected); });
@@ -305,12 +343,14 @@ $('camera-form').addEventListener('submit', async (event) => {
   if (state.saving) return;
   const form = $('camera-form');
   const data = new FormData(form);
-  const camera = {
-    comment: data.get('comment').trim(), ip: data.get('ip').trim(),
-    port: Number(data.get('port')), stream_url: data.get('stream_url').trim(),
-    is_enabled: data.has('is_enabled'),
-  };
-  if (!camera.ip) { notice('form-error', 'Укажите IP-адрес или хост камеры.'); return; }
+  const kind = data.get('source_kind');
+  const device = data.get('device_id') || '';
+  let camera;
+  try {
+    camera = buildCameraPayload({kind, comment: data.get('comment') || '', enabled: data.has('is_enabled'),
+      url: data.get('stream_url') || '', ip: data.get('ip') || '', port: data.get('port') || '',
+      login: data.get('camera_login') || '', password: data.get('camera_password') || ''});
+  } catch (error) { notice('form-error', error.message); return; }
   const editingID = state.editingID;
   state.saving = true;
   for (const id of ['close-dialog', 'cancel-dialog', 'save-camera']) $(id).disabled = true;
@@ -322,6 +362,7 @@ $('camera-form').addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(camera),
     });
     const id = editingID ?? result;
+    rememberDevice(id, kind === 'webcam' ? device : '');
     $('camera-dialog').close();
     form.reset();
     toast(editingID === null ? 'Камера добавлена' : 'Изменения сохранены');
@@ -362,6 +403,7 @@ $('delete-form').addEventListener('submit', async (event) => {
   notice('delete-error');
   try {
     await api(`/api/camera/${id}`, { method: 'DELETE' });
+    rememberDevice(id, '');
     $('delete-dialog').close();
     if (state.selected?.id === id) selectCamera(null);
     toast('Камера удалена');

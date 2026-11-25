@@ -18,9 +18,12 @@ services:
       retries: 30
 
   tests:
-    image: golang:1.27-alpine
+    build:
+      context: ./services/web
+      target: tests
     working_dir: /project/services/api_gateway/src
     environment:
+      FFMPEG_TESTS: "1"
       TEST_DATABASE_URL: postgres://api_gateway_test:test_only@db:5432/api_gateway_test?sslmode=disable
     volumes:
       - ./services/api_gateway/src:/project/services/api_gateway/src:ro
@@ -29,4 +32,4 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: ["sh", "-ec", "go test -count=1 -v ./... && cd /project/services/web/src && go test -count=1 -v ./..."]
+    command: ["sh", "-ec", "go test -count=1 -v ./... && cd /project/services/web/src && go test -count=1 -v ./... && node --test tests/*.test.mjs"]
