@@ -107,6 +107,31 @@ func TestEntityPostgresCRUD(t *testing.T) {
 	if id := decode[int](t, cameraResponse); id != 1 {
 		t.Fatalf("camera ID = %d", id)
 	}
+	cameraResponse = request(t, router, http.MethodGet, "/api/camera/1", nil)
+	expectStatus(t, cameraResponse, http.StatusOK)
+	originalCamera := decode[entities.Camera](t, cameraResponse)
+	cameraResponse = request(t, router, http.MethodPut, "/api/camera/1", map[string]any{
+		"id": 999, "comment": "Edited camera", "ip": "127.0.0.10", "port": 8554,
+		"stream_url": "rtsp://127.0.0.10/live", "is_enabled": false,
+	})
+	expectStatus(t, cameraResponse, http.StatusOK)
+	cameraResponse = request(t, router, http.MethodGet, "/api/camera/1", nil)
+	expectStatus(t, cameraResponse, http.StatusOK)
+	editedCamera := decode[entities.Camera](t, cameraResponse)
+	if editedCamera.ID != 1 || editedCamera.Comment != "Edited camera" || editedCamera.IP != "127.0.0.10" ||
+		editedCamera.Port != 8554 || editedCamera.StreamURL != "rtsp://127.0.0.10/live" || editedCamera.IsEnabled ||
+		!editedCamera.CreatedAt.Equal(originalCamera.CreatedAt) {
+		t.Fatalf("camera edit did not persist: %+v", editedCamera)
+	}
+	expectStatus(t, request(t, router, http.MethodPut, "/api/camera/1", map[string]any{"comment": "", "stream_url": ""}), http.StatusOK)
+	cameraResponse = request(t, router, http.MethodGet, "/api/camera/1", nil)
+	expectStatus(t, cameraResponse, http.StatusOK)
+	partialCamera := decode[entities.Camera](t, cameraResponse)
+	if partialCamera.Comment != "" || partialCamera.StreamURL != "" || partialCamera.IP != "127.0.0.10" ||
+		partialCamera.Port != 8554 || partialCamera.IsEnabled {
+		t.Fatalf("partial update lost fields: %+v", partialCamera)
+	}
+	expectStatus(t, request(t, router, http.MethodPut, "/api/camera/1", map[string]any{"ip": "127.0.0.1", "port": 80, "is_enabled": true}), http.StatusOK)
 	for _, path := range []string{"/api/object", "/api/event"} {
 		response := request(t, router, http.MethodGet, path+"/list?limit=10&offset=0", nil)
 		expectStatus(t, response, http.StatusOK)
@@ -252,6 +277,9 @@ func TestEntityPostgresCRUD(t *testing.T) {
 	}
 	expectStatus(t, request(t, router, http.MethodDelete, "/api/event/"+otherUUID, nil), http.StatusOK)
 	expectStatus(t, request(t, router, http.MethodDelete, "/api/object/2", nil), http.StatusOK)
+	// Removing a camera with history must fail without deleting its events.
+	expectStatus(t, request(t, router, http.MethodDelete, "/api/camera/1", nil), http.StatusConflict)
+	expectStatus(t, request(t, router, http.MethodGet, "/api/camera/1", nil), http.StatusOK)
 	// The event keeps the referenced object from being deleted.
 	expectStatus(t, request(t, router, http.MethodDelete, "/api/object/1", nil), http.StatusInternalServerError)
 	expectStatus(t, request(t, router, http.MethodDelete, "/api/event/"+uuid, nil), http.StatusOK)
@@ -263,6 +291,10 @@ func TestEntityPostgresCRUD(t *testing.T) {
 	}
 	expectStatus(t, request(t, router, http.MethodPut, "/api/object/1", entities.Object{Type: "missing"}), http.StatusNotFound)
 	expectStatus(t, request(t, router, http.MethodPut, "/api/event/"+uuid, event), http.StatusNotFound)
+	expectStatus(t, request(t, router, http.MethodDelete, "/api/camera/1", nil), http.StatusOK)
+	expectStatus(t, request(t, router, http.MethodGet, "/api/camera/1", nil), http.StatusNotFound)
+	expectStatus(t, request(t, router, http.MethodDelete, "/api/camera/1", nil), http.StatusNotFound)
+	expectStatus(t, request(t, router, http.MethodPut, "/api/camera/1", map[string]any{"comment": "missing"}), http.StatusNotFound)
 }
 
 func TestEntityInvalidFilters(t *testing.T) {
@@ -277,5 +309,13 @@ func TestEntityInvalidFilters(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestCameraInvalidUpdates(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(nil).Router
+	for _, body := range []any{json.RawMessage(`null`), map[string]any{}, map[string]any{"ip": "   "}, map[string]any{"ip": ""}, map[string]any{"port": 0}, map[string]any{"port": 65536}, map[string]any{"port": "bad"}, map[string]any{"is_enabled": "bad"}} {
+		expectStatus(t, request(t, router, http.MethodPut, "/api/camera/1", body), http.StatusBadRequest)
 	}
 }

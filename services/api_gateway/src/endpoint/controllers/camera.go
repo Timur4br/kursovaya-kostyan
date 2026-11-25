@@ -1,11 +1,15 @@
 package controllers
 
 import (
+	"database/sql"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 
 	"api_gateway/entities"
 	"api_gateway/helpers"
@@ -24,18 +28,18 @@ func NewCameraController(service *services.CameraService) *CameraController {
 
 // CreateCamera godoc
 // @Summary Create camera with passed properties.
-// @Description Creates a new person in the system
-// @Param request body entities.Camera true "camera entity" (???)
+// @Description Creates a new camera in the system
+// @Param request body entities.Camera true "camera entity"
 // @Success 201 {object} int
 // @Failure 400
 // @Failure 500
-// @Router /api/camera/create [post]
+// @Router /api/camera [post]
 // @Security BearerAuth
 // @Tags Camera
 func (c *CameraController) CreateCamera(ctx *gin.Context) {
 	camera := &entities.Camera{}
-	err := ctx.ShouldBindJSON(&camera)
-	if err != nil {
+	err := ctx.ShouldBindJSON(camera)
+	if err != nil || strings.TrimSpace(camera.IP) == "" || camera.Port < 1 || camera.Port > 65535 {
 		log.Printf("Error shouldBindJSON: %v", err)
 		ctx.Status(http.StatusBadRequest)
 		return
@@ -44,7 +48,7 @@ func (c *CameraController) CreateCamera(ctx *gin.Context) {
 	id, err := c.cameraService.CreateCamera(camera)
 	if err != nil {
 		log.Printf("Error create camera: %v", err)
-		ctx.Status(http.StatusInternalServerError)
+		writeCameraError(ctx, err)
 		return
 	}
 
@@ -73,7 +77,7 @@ func (c *CameraController) GetCameraByID(ctx *gin.Context) {
 	camera, err := c.cameraService.GetCameraByID(id)
 	if err != nil {
 		log.Printf("Error get camera: %v", err)
-		ctx.Status(http.StatusInternalServerError)
+		writeCameraError(ctx, err)
 		return
 	}
 
@@ -113,7 +117,7 @@ func (c *CameraController) GetCameraList(ctx *gin.Context) {
 	cameras, err := c.cameraService.GetCameraList(int(limit), int(offset), filter)
 	if err != nil {
 		log.Printf("Error get camera list: %v", err)
-		ctx.Status(http.StatusInternalServerError)
+		writeCameraError(ctx, err)
 		return
 	}
 
@@ -146,7 +150,7 @@ func (c *CameraController) GetCameraCount(ctx *gin.Context) {
 	count, err := c.cameraService.GetCameraCount(filter)
 	if err != nil {
 		log.Printf("Error get camera count: %v", err)
-		ctx.Status(http.StatusInternalServerError)
+		writeCameraError(ctx, err)
 		return
 	}
 
@@ -155,16 +159,16 @@ func (c *CameraController) GetCameraCount(ctx *gin.Context) {
 
 // UpdateCamera godoc
 // @Summary Update camera by ID.
-// @Description Updates information for an existing person record
+// @Description Updates information for an existing camera record
 // @Accept  json
 // @Produce json
 // @Param id path integer true "Camera ID"
-// @Param request body entities.Camera true "camera entity" (???)
+// @Param request body entities.CameraUpdate true "camera entity"
 // @Success 200
 // @Failure 400
 // @Failure 404
 // @Failure 500 "Internal server error"
-// @Router /api/camera/update/{id} [put]
+// @Router /api/camera/{id} [put]
 // @Security BearerAuth
 // @Tags Camera
 func (c *CameraController) UpdateCamera(ctx *gin.Context) {
@@ -175,9 +179,10 @@ func (c *CameraController) UpdateCamera(ctx *gin.Context) {
 		return
 	}
 
-	camera := &entities.Camera{}
-	err = ctx.ShouldBindJSON(&camera)
-	if err != nil {
+	camera := &entities.CameraUpdate{}
+	err = ctx.ShouldBindJSON(camera)
+	if err != nil || (camera.Comment == nil && camera.IP == nil && camera.Port == nil && camera.StreamURL == nil && camera.IsEnabled == nil) ||
+		(camera.IP != nil && strings.TrimSpace(*camera.IP) == "") {
 		log.Printf("Error shouldBindJSON: %v", err)
 		ctx.Status(http.StatusBadRequest)
 		return
@@ -186,7 +191,7 @@ func (c *CameraController) UpdateCamera(ctx *gin.Context) {
 	err = c.cameraService.UpdateCamera(id, camera)
 	if err != nil {
 		log.Printf("Error update camera: %v", err)
-		ctx.Status(http.StatusInternalServerError)
+		writeCameraError(ctx, err)
 		return
 	}
 
@@ -201,6 +206,7 @@ func (c *CameraController) UpdateCamera(ctx *gin.Context) {
 // @Success 200
 // @Failure 400
 // @Failure 404
+// @Failure 409 "Camera has events"
 // @Failure 500 "Internal server error"
 // @Router /api/camera/{id} [delete]
 // @Security BearerAuth
@@ -216,9 +222,22 @@ func (c *CameraController) DeleteCamera(ctx *gin.Context) {
 	err = c.cameraService.DeleteCamera(id)
 	if err != nil {
 		log.Printf("Error delete camera: %v", err)
-		ctx.Status(http.StatusInternalServerError)
+		writeCameraError(ctx, err)
 		return
 	}
 
 	ctx.Status(http.StatusOK)
+}
+
+func writeCameraError(ctx *gin.Context, err error) {
+	if errors.Is(err, sql.ErrNoRows) {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+	var pgError *pq.Error
+	if errors.As(err, &pgError) && pgError.Code == "23503" {
+		ctx.JSON(http.StatusConflict, gin.H{"error": "camera_has_events"})
+		return
+	}
+	ctx.Status(http.StatusInternalServerError)
 }

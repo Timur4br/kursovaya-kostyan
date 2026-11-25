@@ -143,6 +143,7 @@ func (d *CameraDAO) UpdateCamera(camera *entities.Camera) error {
 		updated_at = NOW()
 	WHERE
 		id = $1
+    RETURNING id
 	`, d.tableName)
 
 	var id int
@@ -167,7 +168,9 @@ func (d *CameraDAO) DeleteCamera(id int) error {
 		t.id = $1
 	`, d.tableName)
 
-	_, err := d.db.Exec(query, id)
+	query += " RETURNING id"
+	var deletedID int
+	err := d.db.QueryRow(query, id).Scan(&deletedID)
 	if err != nil {
 		log.Printf("Error delete camera by [id=%d]: %v", id, err)
 		return err

@@ -20,6 +20,22 @@ definitions:
       updated_at:
         type: string
     type: object
+  entities.CameraUpdate:
+    properties:
+      comment:
+        type: string
+      ip:
+        minLength: 1
+        type: string
+      is_enabled:
+        type: boolean
+      port:
+        maximum: 65535
+        minimum: 1
+        type: integer
+      stream_url:
+        type: string
+    type: object
   entities.Event:
     properties:
       camera_id:
@@ -68,6 +84,30 @@ info:
   title: api gateway
   version: "1.0"
 paths:
+  /api/camera:
+    post:
+      description: Creates a new camera in the system
+      parameters:
+      - description: camera entity
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/entities.Camera'
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: integer
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Create camera with passed properties.
+      tags:
+      - Camera
   /api/camera/{id}:
     delete:
       consumes:
@@ -87,6 +127,8 @@ paths:
           description: Bad Request
         "404":
           description: Not Found
+        "409":
+          description: Camera has events
         "500":
           description: Internal server error
       security:
@@ -117,6 +159,38 @@ paths:
       security:
       - BearerAuth: []
       summary: Get camera info by ID.
+      tags:
+      - Camera
+    put:
+      consumes:
+      - application/json
+      description: Updates information for an existing camera record
+      parameters:
+      - description: Camera ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: camera entity
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/entities.CameraUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Update camera by ID.
       tags:
       - Camera
   /api/camera/count:
@@ -157,30 +231,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Get cameras count
-      tags:
-      - Camera
-  /api/camera/create:
-    post:
-      description: Creates a new person in the system
-      parameters:
-      - description: camera entity
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/entities.Camera'
-      responses:
-        "201":
-          description: Created
-          schema:
-            type: integer
-        "400":
-          description: Bad Request
-        "500":
-          description: Internal Server Error
-      security:
-      - BearerAuth: []
-      summary: Create camera with passed properties.
       tags:
       - Camera
   /api/camera/list:
@@ -231,39 +281,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Get paginated list of cameras
-      tags:
-      - Camera
-  /api/camera/update/{id}:
-    put:
-      consumes:
-      - application/json
-      description: Updates information for an existing person record
-      parameters:
-      - description: Camera ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: camera entity
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/entities.Camera'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-        "500":
-          description: Internal server error
-      security:
-      - BearerAuth: []
-      summary: Update camera by ID.
       tags:
       - Camera
   /api/event:

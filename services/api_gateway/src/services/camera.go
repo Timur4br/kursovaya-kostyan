@@ -58,18 +58,28 @@ func (s *CameraService) GetCameraCount(filter *entities.Filter) (int, error) {
 	return count, err
 }
 
-func (s *CameraService) UpdateCamera(id int, camera *entities.Camera) error {
+func (s *CameraService) UpdateCamera(id int, camera *entities.CameraUpdate) error {
 	existingCamera, err := s.GetCameraByID(id)
 	if err != nil {
 		log.Printf("Error get camera for update: %v", err)
 		return err
 	}
 
-	// TODO:
-	// Закинуть в s.dao.UpdateCamera сущность с полями, которые нужно обновить, если они были переданы в s.UpdateCamera
-	// Если поля не были переданы, то оставить их без изменений (использовать существующие значения из existingCamera)
-	// Возможно добавить структуру для Update методов и использовать её в качестве аргумента для s.UpdateCamera, чтобы явно указать, какие поля нужно обновить
-	// Поля в этой структуре могут быть указаны как указатели, чтобы отличать "не передано" от "передано со значением по умолчанию"
+	if camera.Comment != nil {
+		existingCamera.Comment = *camera.Comment
+	}
+	if camera.IP != nil {
+		existingCamera.IP = *camera.IP
+	}
+	if camera.Port != nil {
+		existingCamera.Port = *camera.Port
+	}
+	if camera.StreamURL != nil {
+		existingCamera.StreamURL = *camera.StreamURL
+	}
+	if camera.IsEnabled != nil {
+		existingCamera.IsEnabled = *camera.IsEnabled
+	}
 
 	err = s.dao.UpdateCamera(existingCamera)
 	if err != nil {
