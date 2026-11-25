@@ -8,6 +8,22 @@
 
 Заполните корневой `.env` по `.env.sample`, как для `api_gateway`.
 `WEB_PORT` задаёт порт веб-панели; по умолчанию используется `8088`.
+
+Если `.env` остался от прежней версии проекта, добавьте недостающие параметры:
+
+```dotenv
+POSTGRES_PORT=5432
+POSTGRES_DATA_FOLDER=./.local/postgres-refactor
+HOST_LOGS_PATH=./.local/logs
+LOGS_FILE_PATH=/api_gateway/logs/api.log
+WEB_PORT=8088
+```
+
+`POSTGRES_DATA_FOLDER` — каталог данных PostgreSQL на компьютере;
+`HOST_LOGS_PATH` — каталог логов. Имеющиеся имя базы, пользователя, пароль и
+`API_PORT` сохраните. Пароль и сам `.env` в Git не добавляются.
+Внутри Docker PostgreSQL всегда использует порт 5432; `POSTGRES_PORT`
+управляет только портом на компьютере.
 Из корня проекта:
 
 ```sh

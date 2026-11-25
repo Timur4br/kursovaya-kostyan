@@ -1,6 +1,6 @@
 x-db-environment: &db-environment
   DB_HOST: db
-  DB_PORT: ${POSTGRES_PORT}
+  DB_PORT: 5432
   DB_NAME: ${POSTGRES_DB:?Fill POSTGRES_DB in .env}
   DB_USER: ${POSTGRES_USER:?Fill POSTGRES_USER in .env}
   DB_PASSWORD: ${POSTGRES_PASSWORD:?Fill POSTGRES_PASSWORD in .env}
@@ -14,7 +14,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?Fill POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Fill POSTGRES_PASSWORD in .env}
     ports:
-      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+      - "${POSTGRES_PORT}:5432"
     volumes:
       - ${POSTGRES_DATA_FOLDER}:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
@@ -48,7 +48,7 @@ services:
       start_period: 20s
     restart: unless-stopped
     volumes:
-      - logs_ds:/api_gateway/logs
+      - ${HOST_LOGS_PATH}:/api_gateway/logs
 
   web:
     build:
