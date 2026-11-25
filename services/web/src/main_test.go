@@ -35,6 +35,23 @@ func TestProxyForwardsGatewayRequests(t *testing.T) {
 			}
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`42`))
+		case "/api/camera/42":
+			if r.Method == http.MethodPut {
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Error(err)
+				}
+				if body["comment"] != "Edited" || body["is_enabled"] != false {
+					t.Error("update body changed")
+				}
+			} else if r.Method == http.MethodDelete {
+				w.WriteHeader(http.StatusNoContent)
+			} else {
+				t.Error("unexpected camera method")
+			}
+		case "/api/camera/43":
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(`{"error":"camera_has_events"}`))
 		case "/api/object/1":
 			w.WriteHeader(http.StatusNotFound)
 		default:
@@ -53,6 +70,9 @@ func TestProxyForwardsGatewayRequests(t *testing.T) {
 	}{
 		{http.MethodGet, "/api/event/list?camera_id=7&offset=15&created_from=2026-11-01T00%3A00%3A00%2B03%3A00", "", http.StatusOK, `[{"camera_id":7,"type":"found"}]`},
 		{http.MethodPost, "/api/camera", `{"ip":"192.168.1.10","port":80,"is_enabled":false}`, http.StatusCreated, "42"},
+		{http.MethodPut, "/api/camera/42", `{"comment":"Edited","is_enabled":false}`, http.StatusOK, ""},
+		{http.MethodDelete, "/api/camera/42", "", http.StatusNoContent, ""},
+		{http.MethodDelete, "/api/camera/43", "", http.StatusConflict, `{"error":"camera_has_events"}`},
 		{http.MethodGet, "/api/object/1", "", http.StatusNotFound, ""},
 	} {
 		t.Run(tc.method+tc.path, func(t *testing.T) {

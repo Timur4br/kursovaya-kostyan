@@ -4,7 +4,7 @@ const EVENT_PAGE_SIZE = 15;
 const state = {
   cameraPage: 0, cameraCount: 0, cameras: [], selected: null,
   eventPage: 0, eventCount: 0, filters: {}, cameraRequest: null,
-  eventRequest: null, cameraBusy: false, eventBusy: false, saving: false,
+  eventRequest: null, cameraBusy: false, eventBusy: false, saving: false, editingID: null, deletingID: null, deleting: false,
   objectNames: new Map(),
 };
 const dateFormat = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -44,13 +44,15 @@ async function api(path, options = {}) {
   }
   if (!response.ok) {
     if (response.status === 400) throw new Error('Проверьте введённые значения.');
+    if (response.status === 409) throw new Error('У камеры есть события — удалить её нельзя.');
     if (response.status === 404) throw new Error('Запись не найдена. Обновите список.');
     if (response.status === 502 || response.status === 503 || response.status === 504) {
       throw new Error('Сервер недоступен. Попробуйте позже.');
     }
     throw new Error('Не удалось выполнить запрос. Попробуйте ещё раз.');
   }
-  return response.json();
+  const body = await response.text();
+  return body ? JSON.parse(body) : null;
 }
 function updateCameraPager() {
   const pages = Math.max(1, Math.ceil(state.cameraCount / CAMERA_PAGE_SIZE));
@@ -92,6 +94,8 @@ function selectCamera(camera) {
   state.selected = camera || null;
   state.eventPage = 0;
   renderCameras();
+  $('edit-camera').disabled = !camera;
+  $('delete-camera').disabled = !camera;
   $('apply-filter').disabled = !camera;
   $('reset-filter').disabled = !camera;
   if (!camera) {
@@ -137,7 +141,10 @@ async function loadCameras({ selectID = null, refreshEvents = false } = {}) {
     state.cameras = cameras;
     $('camera-list-caption').textContent = String(count);
     const previousID = state.selected?.id;
-    const selected = cameras.find((camera) => camera.id === (selectID ?? previousID)) || cameras[0];
+    let selected = cameras.find((camera) => camera.id === (selectID ?? previousID));
+    if (!selected && selectID !== null) selected = await api(`/api/camera/${selectID}`, options);
+    if (controller.signal.aborted) return;
+    selected ||= cameras[0];
     if (selected?.id !== previousID || selectID !== null || !selected) selectCamera(selected);
     else {
       state.selected = selected;
@@ -269,8 +276,29 @@ $('reset-filter').addEventListener('click', () => {
   state.eventPage = 0;
   loadEvents();
 });
+function toast(message) {
+  $('toast').textContent = message;
+  $('toast').hidden = false;
+  clearTimeout(state.toastTimeout);
+  state.toastTimeout = setTimeout(() => { $('toast').hidden = true; }, 4500);
+}
+function openCameraDialog(camera = null) {
+  if (state.saving) return;
+  const form = $('camera-form');
+  form.reset();
+  state.editingID = camera?.id ?? null;
+  if (camera) {
+    for (const name of ['comment', 'ip', 'port', 'stream_url']) form.elements.namedItem(name).value = camera[name] ?? '';
+    form.elements.namedItem('is_enabled').checked = camera.is_enabled;
+  }
+  $('dialog-title').textContent = camera ? 'Изменить камеру' : 'Добавить камеру';
+  $('save-camera').textContent = camera ? 'Сохранить' : 'Добавить камеру';
+  notice('form-error');
+  $('camera-dialog').showModal();
+}
 $('camera-dialog').addEventListener('cancel', (event) => { if (state.saving) event.preventDefault(); });
-$('open-camera-dialog').addEventListener('click', () => { notice('form-error'); $('camera-dialog').showModal(); });
+$('open-camera-dialog').addEventListener('click', () => openCameraDialog());
+$('edit-camera').addEventListener('click', () => { if (state.selected) openCameraDialog(state.selected); });
 for (const id of ['close-dialog', 'cancel-dialog']) $(id).addEventListener('click', () => $('camera-dialog').close());
 $('camera-form').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -283,35 +311,67 @@ $('camera-form').addEventListener('submit', async (event) => {
     is_enabled: data.has('is_enabled'),
   };
   if (!camera.ip) { notice('form-error', 'Укажите IP-адрес или хост камеры.'); return; }
+  const editingID = state.editingID;
   state.saving = true;
-  $('close-dialog').disabled = true;
-  $('cancel-dialog').disabled = true;
-  $('save-camera').disabled = true;
+  for (const id of ['close-dialog', 'cancel-dialog', 'save-camera']) $(id).disabled = true;
   $('save-camera').textContent = 'Сохраняем…';
   notice('form-error');
   try {
-    const id = await api('/api/camera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(camera) });
+    const result = await api(editingID === null ? '/api/camera' : `/api/camera/${editingID}`, {
+      method: editingID === null ? 'POST' : 'PUT',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(camera),
+    });
+    const id = editingID ?? result;
     $('camera-dialog').close();
     form.reset();
-    $('toast').textContent = 'Камера добавлена';
-    $('toast').hidden = false;
-    clearTimeout(state.toastTimeout);
-    state.toastTimeout = setTimeout(() => { $('toast').hidden = true; }, 4500);
+    toast(editingID === null ? 'Камера добавлена' : 'Изменения сохранены');
     $('camera-status').value = '';
     try {
-      const total = await api('/api/camera/count');
-      state.cameraPage = Math.max(0, Math.ceil(total / CAMERA_PAGE_SIZE) - 1);
+      if (editingID === null) {
+        const total = await api('/api/camera/count');
+        state.cameraPage = Math.max(0, Math.ceil(total / CAMERA_PAGE_SIZE) - 1);
+      }
       await loadCameras({ selectID: id });
     } catch {
-      notice('camera-error', 'Камера добавлена, но список не обновился. Нажмите кнопку обновления.');
+      notice('camera-error', 'Изменения сохранены, но список не обновился. Нажмите «Обновить».');
     }
   } catch (error) { notice('form-error', error.message); }
   finally {
     state.saving = false;
-    $('close-dialog').disabled = false;
-    $('cancel-dialog').disabled = false;
-    $('save-camera').disabled = false;
-    $('save-camera').textContent = 'Добавить камеру';
+    for (const id of ['close-dialog', 'cancel-dialog', 'save-camera']) $(id).disabled = false;
+    $('save-camera').textContent = state.editingID === null ? 'Добавить камеру' : 'Сохранить';
+  }
+});
+$('delete-camera').addEventListener('click', () => {
+  if (!state.selected || state.deleting) return;
+  state.deletingID = state.selected.id;
+  $('delete-caption').textContent = `Камера «${cameraName(state.selected)}» будет удалена.`;
+  notice('delete-error');
+  $('delete-dialog').showModal();
+});
+$('cancel-delete').addEventListener('click', () => $('delete-dialog').close());
+$('delete-dialog').addEventListener('cancel', (event) => { if (state.deleting) event.preventDefault(); });
+$('delete-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (state.deleting || state.deletingID === null) return;
+  const id = state.deletingID;
+  state.deleting = true;
+  $('confirm-delete').disabled = true;
+  $('cancel-delete').disabled = true;
+  $('confirm-delete').textContent = 'Удаляем…';
+  notice('delete-error');
+  try {
+    await api(`/api/camera/${id}`, { method: 'DELETE' });
+    $('delete-dialog').close();
+    if (state.selected?.id === id) selectCamera(null);
+    toast('Камера удалена');
+    await loadCameras({ refreshEvents: true });
+  } catch (error) { notice('delete-error', error.message); }
+  finally {
+    state.deleting = false;
+    $('confirm-delete').disabled = false;
+    $('cancel-delete').disabled = false;
+    $('confirm-delete').textContent = 'Удалить камеру';
   }
 });
 loadCameras();

@@ -25,7 +25,7 @@
         <div class="pagination camera-pagination"><button class="button quiet" id="camera-prev" disabled>Назад</button><span id="camera-page" class="muted">—</span><button class="button quiet" id="camera-next" disabled>Далее</button></div>
       </section>
       <section class="panel events-panel" aria-labelledby="events-heading">
-        <div class="panel-heading event-heading"><div><h2 id="events-heading">События</h2><p class="muted" id="selected-camera-detail">Выберите камеру</p></div><span class="section-label">События</span></div>
+        <div class="panel-heading event-heading"><div><h2 id="events-heading">События</h2><p class="muted" id="selected-camera-detail">Выберите камеру</p></div><div class="camera-actions"><button class="button text-button" id="edit-camera" disabled>Изменить</button><button class="button text-button delete-link" id="delete-camera" disabled>Удалить</button></div></div>
         <form id="event-filter" class="event-filters"><label>С<input id="created-from" type="datetime-local" name="from"></label><label>По<input id="created-to" type="datetime-local" name="to"></label><button class="button secondary" type="submit" id="apply-filter" disabled>Показать</button><button class="button text-button" type="button" id="reset-filter" disabled>Сбросить</button></form>
         <div class="notice error" id="event-error" role="alert" hidden></div>
         <div id="events-content" aria-live="polite" aria-busy="false"><div class="empty-state"><h3>Выберите камеру</h3><p>Здесь будут её события.</p></div></div>
@@ -42,6 +42,15 @@
       <label class="checkbox-label"><input name="is_enabled" type="checkbox" checked><span>Камера включена</span></label>
       <div class="notice error" id="form-error" role="alert" hidden></div>
       <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-dialog">Отмена</button><button type="submit" class="button primary" id="save-camera">Добавить камеру</button></div>
+    </form>
+  </dialog>
+  <dialog id="delete-dialog" aria-labelledby="delete-title">
+    <form id="delete-form">
+      <div class="dialog-heading"><h2 id="delete-title">Удалить камеру?</h2></div>
+      <p id="delete-caption"></p>
+      <p class="muted delete-note">Это действие нельзя отменить.</p>
+      <div class="notice error" id="delete-error" role="alert" hidden></div>
+      <div class="dialog-actions"><button type="button" class="button secondary" id="cancel-delete">Отмена</button><button type="submit" class="button danger" id="confirm-delete">Удалить камеру</button></div>
     </form>
   </dialog>
   <div class="toast" id="toast" role="status" hidden></div>

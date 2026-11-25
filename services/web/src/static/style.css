@@ -113,3 +113,12 @@ dialog label { margin-bottom: 19px; }
   th, td { padding-right: 12px; padding-left: 12px; }
   dialog { padding: 23px; }
 }
+
+.camera-actions { display: flex; align-items: center; gap: 15px; flex-shrink: 0; }
+.delete-link { color: #9a6b58; }
+.delete-link:hover:not(:disabled) { color: #7f3f2d; }
+.danger { background: #985b47; color: #fff; border-color: #985b47; }
+.danger:hover:not(:disabled) { background: #814936; }
+.delete-note { margin: 8px 0 23px; }
+#delete-dialog .dialog-heading { margin-bottom: 16px; }
+@media (max-width: 900px) { .event-heading { flex-wrap: wrap; gap: 6px; } }
