@@ -2,9 +2,10 @@ package pg_dao
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
+
+	"github.com/pgvector/pgvector-go"
 
 	"api_gateway/entities"
 )
@@ -19,11 +20,6 @@ func NewEventDAO(db *sql.DB) *EventDAO {
 }
 
 func (d *EventDAO) CreateEvent(event *entities.Event) (string, error) {
-	embeddingJSON, err := json.Marshal(event.Embedding)
-	if err != nil {
-		return "", err
-	}
-	embedding := string(embeddingJSON)
 	query := fmt.Sprintf(`
 	INSERT INTO %s (camera_id, object_id, type, confidence, embedding, photo_uuid)
 	VALUES ($1, $2, $3, $4, $5, $6)
@@ -31,7 +27,7 @@ func (d *EventDAO) CreateEvent(event *entities.Event) (string, error) {
 	`, d.tableName)
 
 	var uuid string
-	err = d.db.QueryRow(query, event.CameraID, event.ObjectID, event.Type, event.Confidence, embedding, event.PhotoUUID).Scan(&uuid)
+	err := d.db.QueryRow(query, event.CameraID, event.ObjectID, event.Type, event.Confidence, pgvector.NewVector(event.Embedding), event.PhotoUUID).Scan(&uuid)
 	if err != nil {
 		log.Printf("Error create event query: %v", err)
 		return "", err
@@ -41,14 +37,12 @@ func (d *EventDAO) CreateEvent(event *entities.Event) (string, error) {
 
 func scanEvent(row interface{ Scan(...any) error }) (*entities.Event, error) {
 	event := &entities.Event{}
-	var embedding string
+	var embedding pgvector.Vector
 	err := row.Scan(&event.UUID, &event.CameraID, &event.ObjectID, &event.Type, &event.Confidence, &embedding, &event.PhotoUUID, &event.CreatedAt, &event.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
-	if err := json.Unmarshal([]byte(embedding), &event.Embedding); err != nil {
-		return nil, err
-	}
+	event.Embedding = embedding.Slice()
 	return event, nil
 }
 
@@ -111,11 +105,6 @@ func (d *EventDAO) GetCount(filter *entities.Filter) (int, error) {
 }
 
 func (d *EventDAO) UpdateEvent(event *entities.Event) error {
-	embeddingJSON, err := json.Marshal(event.Embedding)
-	if err != nil {
-		return err
-	}
-	embedding := string(embeddingJSON)
 	query := fmt.Sprintf(`
 	UPDATE %s
 	SET camera_id = $2,
@@ -130,7 +119,7 @@ func (d *EventDAO) UpdateEvent(event *entities.Event) error {
 	`, d.tableName)
 
 	var uuid string
-	err = d.db.QueryRow(query, event.UUID, event.CameraID, event.ObjectID, event.Type, event.Confidence, embedding, event.PhotoUUID).Scan(&uuid)
+	err := d.db.QueryRow(query, event.UUID, event.CameraID, event.ObjectID, event.Type, event.Confidence, pgvector.NewVector(event.Embedding), event.PhotoUUID).Scan(&uuid)
 	if err != nil {
 		log.Printf("Error update event: %v", err)
 		return err
